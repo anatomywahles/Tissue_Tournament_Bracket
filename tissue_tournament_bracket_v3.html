@@ -1,0 +1,1415 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Tissue Tournament Bracket</title>
+
+  <!-- Export libraries (used for PDF download at the end) -->
+  <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+
+  <style>
+    :root{
+      --bg:#f8fafc;
+      --card:#ffffff;
+      --text:#111827;
+      --muted:#374151;
+      --accent:#1d4ed8;
+      --accent2:#047857;
+      --danger:#b91c1c;
+      --border:rgba(17,24,39,.18);
+      --shadow: 0 10px 30px rgba(17,24,39,.08);
+      --radius:18px;
+      --focus: 0 0 0 3px rgba(29,78,216,.25);
+      --soft:#eef2ff;
+      --selectedFill: rgba(245,158,11,.18);
+      --selectedBorder: rgba(245,158,11,.85);
+    }
+
+    body{
+      margin:0;
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+    }
+
+    header{
+      padding: 26px 18px 10px;
+      max-width: 1100px;
+      margin: 0 auto;
+    }
+
+    h1{
+      margin:0 0 6px;
+      font-size: clamp(1.35rem, 2.2vw, 2.05rem);
+    }
+
+    header p{
+      margin: 10px 0 0;
+      color: var(--muted);
+      line-height: 1.5;
+      max-width: 980px;
+    }
+
+    .wrap{
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 12px 18px 30px;
+      display: grid;
+      gap: 14px;
+    }
+
+    .card{
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 16px;
+    }
+
+    .row{
+      display:flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .pill{
+      display:inline-flex;
+      gap:10px;
+      align-items:center;
+      padding: 8px 10px;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      background: #ffffff;
+      color: var(--muted);
+      font-size: .92rem;
+    }
+    .pill strong{ color: var(--text); }
+
+    label{
+      display:block;
+      font-size: .92rem;
+      color: var(--muted);
+      margin-bottom: 6px;
+      font-weight: 700;
+    }
+
+    input[type="text"]{
+      width: min(520px, 100%);
+      padding: 10px 12px;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      background: #ffffff;
+      color: var(--text);
+      outline: none;
+    }
+    input[type="text"]:focus{ box-shadow: var(--focus); border-color: rgba(29,78,216,.55); }
+
+    textarea{
+      width: 100%;
+      min-height: 96px;
+      padding: 10px 12px;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      background: #ffffff;
+      color: var(--text);
+      outline: none;
+      resize: vertical;
+      line-height: 1.4;
+    }
+    textarea:focus{ box-shadow: var(--focus); border-color: rgba(29,78,216,.55); }
+
+    .btns{ display:flex; gap:10px; flex-wrap:wrap; }
+
+    button{
+      border: 1px solid var(--border);
+      background: #ffffff;
+      color: var(--text);
+      padding: 10px 12px;
+      border-radius: 14px;
+      cursor: pointer;
+      transition: transform .04s ease, background .2s ease, border-color .2s ease;
+      font-weight: 800;
+    }
+    button:hover{ background: #f3f4f6; }
+    button:active{ transform: translateY(1px); }
+    button:focus{ outline: none; box-shadow: var(--focus); }
+
+    button.primary{
+      background: rgba(29,78,216,.10);
+      border-color: rgba(29,78,216,.35);
+      color: #0b2e87;
+    }
+    button.good{
+      background: rgba(4,120,87,.10);
+      border-color: rgba(4,120,87,.35);
+      color: #065f46;
+    }
+    button.danger{
+      background: rgba(185,28,28,.10);
+      border-color: rgba(185,28,28,.35);
+      color: #7f1d1d;
+    }
+    button[disabled]{ opacity: .55; cursor:not-allowed; }
+
+    .note{ color: var(--muted); font-size:.95rem; line-height:1.45; }
+    .divider{ height:1px; background: var(--border); margin: 10px 0; }
+
+    /* Match UI */
+    .match{ display:grid; gap: 12px; grid-template-columns: 1fr; }
+
+    .titleBox{
+      background: var(--soft);
+      border: 1px solid rgba(29,78,216,.18);
+      border-radius: 16px;
+      padding: 10px 12px;
+    }
+    .bracketTitle{
+      margin:0;
+      font-size: 1.15rem;
+      letter-spacing:.2px;
+      color:#0b2e87;
+      font-weight: 900;
+    }
+
+    .choices{
+      display:grid;
+      grid-template-columns: repeat(2, minmax(0,1fr));
+      gap:12px;
+    }
+    .choice{
+      border: 1px solid var(--border);
+      background: #ffffff;
+      border-radius: 16px;
+      padding: 12px;
+      display:grid;
+      gap:10px;
+    }
+    .choice h3{ margin:0; font-size: 1.05rem; }
+    .choice button{ width: 100%; }
+
+    .choice.selected{
+      border-color: var(--selectedBorder);
+      background: var(--selectedFill);
+    }
+
+    button.selectedBtn{
+      background: rgba(245,158,11,.25);
+      border-color: rgba(245,158,11,.70);
+      color: #7c2d12;
+    }
+
+    @media (max-width: 700px){
+      .choices{ grid-template-columns: 1fr; }
+    }
+
+    .hidden{ display:none !important; }
+    .errorText{ color: var(--danger); font-weight: 800; }
+
+    /* Live bracket */
+    #liveBracketWrap{
+      overflow-x: auto;
+      padding-bottom: 6px;
+    }
+
+    .historyItem{
+      border-top: 1px solid rgba(17,24,39,.12);
+      padding: 8px 0;
+    }
+    .historyItem:first-child{ border-top: none; }
+
+    /* Result/export */
+    .champ{
+      font-weight: 900;
+      color:#065f46;
+      font-size: 1.1rem;
+    }
+
+    #exportBracketPage, #exportExplanationPage{
+      background:#ffffff;
+      border: 2px solid rgba(17,24,39,.18);
+      border-radius: 16px;
+      padding: 14px;
+    }
+
+    .exportHeader{
+      display:flex;
+      justify-content: space-between;
+      gap:10px;
+      flex-wrap:wrap;
+      align-items: baseline;
+    }
+    .exportHeader h2{ margin:0; font-size: 1.25rem; }
+    .exportHeader .meta{ color:#374151; font-size:.95rem; }
+
+    #bracketSVGWrap{ margin-top: 10px; overflow: hidden; }
+
+    .expBlock{
+      border-top: 1px solid rgba(17,24,39,.12);
+      padding: 10px 0;
+    }
+    .expBlock:first-child{ border-top:none; }
+    .expTitle{
+      font-weight: 900;
+      color:#111827;
+      margin-bottom: 4px;
+    }
+    .expSmall{
+      color:#374151;
+      font-size:.95rem;
+      line-height: 1.35;
+      white-space: pre-wrap;
+    }
+
+.roundHeader{
+  text-align:center;
+  font-weight: 900;
+  text-decoration: underline;
+  margin: 10px 0 6px;
+  font-size: 1.15rem;
+}
+.questionHeader{
+  text-align:center;
+  margin: 6px 0 10px;
+}
+
+</style>
+</head>
+
+<body>
+<header>
+  <h1>Tissue Tournament Bracket</h1>
+
+  <p>
+    The human body has <strong>MANY</strong> types of tissue that <strong>EACH</strong> perform a specific, necessary function.
+    But now it's time for you to do the impossible: decide which types of tissue are <em>slightly more</em> important than the others!
+  </p>
+
+  <p>
+    For each tissue “matchup” shown below, pick the type of tissue that you think is <em>slightly more</em> important.
+    Then, give a short explanation for why you picked that type of tissue.
+  </p>
+
+  <p>
+    By the end of this bracket, you'll have selected <strong>THE MOST IMPORTANT</strong> type of tissue in the body!
+  </p>
+
+  <p><strong>Good luck with your Tissue Tournament Bracket!</strong></p>
+</header>
+
+<div class="wrap">
+
+  <section class="card">
+    <div class="row">
+      <div class="row" style="gap:10px;">
+        <span class="pill">Student: <strong id="studentPill">—</strong></span>
+        <span class="pill">Round: <strong id="roundLabel">—</strong></span>
+        <span class="pill">Match: <strong id="matchLabel">—</strong></span>
+        <span class="pill">Decisions made: <strong id="pickCount">0</strong></span>
+      </div>
+      <div class="btns">
+        <button id=\"btnSave\" class=\"primary\" type=\"button\">Save Progress</button>
+      <button id="btnReset" class="danger" type="button">Reset</button>
+      </div>
+    </div>
+    <p class="note" style="margin-top:10px;">
+      Reminder: Your explanation is required for every decision and is part of your grade.
+    </p>
+  </section>
+
+  <!-- Start gate -->
+  <section class="card" id="startGate" aria-live="polite">
+    <h2 style="margin:0 0 6px;">Before you begin…</h2>
+    <p class="note" style="margin:0 0 12px;">
+      Enter your name and click Begin. Your bracket will generate after you begin.
+    </p>
+
+    <div style="max-width:560px;">
+      <label for="requiredName">Name (required)</label>
+      <input id="requiredName" type="text" placeholder="e.g., Firstname Lastname" autocomplete="name" />
+      <p class="note" id="nameHint" style="margin:8px 0 0;"></p>
+    </div>
+
+    <div class="btns" style="margin-top:12px;">
+      <button id="btnBegin" class="primary" type="button" disabled>Begin Bracket</button>
+    </div>
+  
+    <div class="divider"></div>
+    <div id="resumeBox" class="hidden">
+      <p class="note" id="resumeNote" style="margin:0 0 10px;"></p>
+      <div class="btns">
+        <button id="btnResume" class="good" type="button">Resume Saved Bracket</button>
+      </div>
+    </div>
+
+    </section>
+
+  <!-- Match UI (hidden until Begin) -->
+  <section class="card match hidden" id="matchCard" aria-live="polite">
+    <div class="titleBox">
+      <p class="bracketTitle" id="matchTitle">Bracket will appear here</p>
+    </div>
+  </section>
+
+  <!-- Round Summary (shown between rounds) -->
+  <section class="card hidden" id="roundSummaryCard" aria-live="polite">
+    <h2 id="summaryTitle" style="margin:0 0 6px;">Round complete!</h2>
+    <p class="note" id="summaryNote" style="margin:0 0 10px;">Here is your bracket so far.</p>
+    <div class="divider"></div>
+    <div id="summaryBracketWrap"></div>
+    <div class="divider"></div>
+    <div class="row" style="margin-top:10px;">
+      <div class="note" id="summaryProgress">&nbsp;</div>
+      <div class="btns">
+        <button class="good" id="btnNextRound" type="button">On to the next round!</button>
+      </div>
+    </div>
+  </section>
+
+
+  <!-- Live bracket (fills in as student progresses) -->
+  <section class="card hidden" id="liveBracketCard" aria-live="polite">
+    <div class="row">
+      <div>
+        <h2 style="margin:0;">Live Bracket</h2>
+        <p class="note" style="margin:6px 0 0;">This bracket fills in as you submit each decision.</p>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <div id="liveBracketWrap"></div>
+
+    <div class="divider"></div>
+
+    <div>
+      <h3 style="margin:0 0 6px;">Decision History</h3>
+      <div class="note" id="decisionHistoryNote" style="margin:0 0 8px;">Your completed decisions will appear here.</div>
+      <div id="decisionHistory"></div>
+    </div>
+  </section>
+
+  <!-- Results/Export (hidden until complete) -->
+  <section class="card hidden" id="resultCard" aria-live="polite">
+    <div class="row">
+      <div>
+        <div class="note">Champion tissue:</div>
+        <div class="champ" id="championName">—</div>
+      </div>
+      <div class="btns">
+        <button id="btnPDFBracket" class="primary" type="button">Download PDF (Bracket Only)</button>
+        <button id="btnPDFExplanations" class="primary" type="button">Download PDF (Explanations Only)</button>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <!-- PAGE 1 (Bracket) -->
+    <div id="exportBracketPage">
+      <div class="exportHeader">
+        <h2 id="exportTitle1">—</h2>
+        <div class="meta" id="exportMeta1">—</div>
+      </div>
+      <div class="note" style="margin-top:6px;">
+        Bracket shows matchups and winners. Each matchup is labeled as a Decision number.
+      </div>
+      <div id="bracketSVGWrap"></div>
+    </div>
+
+    <div class="divider"></div>
+
+    <!-- PAGE 2 (Explanations) -->
+    <div id="exportExplanationPage">
+      <div class="exportHeader">
+        <h2 id="exportTitle2">Explanations</h2>
+        <div class="meta" id="exportMeta2">—</div>
+      </div>
+      <div class="note" style="margin-top:6px;">
+        Explanations are labeled to match the bracket’s Decision numbers.
+      </div>
+      <div id="explanationsList"></div>
+      <div class="note" style="margin-top:10px;"><strong id="champLine2"></strong></div>
+    </div>
+
+  </section>
+
+</div>
+
+<script>
+window.addEventListener("DOMContentLoaded", () => {
+  /************************************************************
+   * Utilities
+   ************************************************************/
+  const escapeHtml = (str) => String(str).replace(/[&<>"']/g, s => ({
+    "&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#039;"
+  }[s]));
+
+  // Safe localStorage wrappers (some previewers block storage)
+  function safeGet(key){ try { return localStorage.getItem(key); } catch { return null; } }
+  function safeSet(key, val){ try { localStorage.setItem(key, val); } catch { /* ignore */ } }
+  function safeRemove(key){ try { localStorage.removeItem(key); } catch { /* ignore */ } }
+
+  function shuffle(array) {
+    const a = array.slice();
+    for (let i = a.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [a[i], a[j]] = [a[j], a[i]];
+    }
+    return a;
+  }
+
+  function pairUp(items) {
+    const pairs = [];
+    for (let i = 0; i < items.length; i += 2) pairs.push([items[i], items[i + 1]]);
+    return pairs;
+  }
+
+  function padToLength(items, length) {
+    const out = items.slice();
+    while (out.length < length) out.push({ name: "" });
+    return out.slice(0, length);
+  }
+
+  /************************************************************
+   * Your assignment text requirement
+   ************************************************************/
+  const EXPLANATION_INSTRUCTIONS =
+ "Give a brief explanation of why you selected this type of tissue. Consider things like the locations / functions of these tissues, or the role of each in keeping you alive.";
+
+  const SETTINGS = {
+    minExplanationWords: 10,
+    persistKey: "tissue_tournament_run_v2",
+    seedsKey: "tissue_tournament_seeds_v2"
+  };
+
+  /************************************************************
+   * Stratified draw definition (16 total)
+   ************************************************************/
+  const STRATA = [
+    {
+      stratum: "Simple epithelium",
+      draw: 2,
+      items: [
+        { name: "Simple squamous epithelium" },
+        { name: "Simple cuboidal epithelium" }
+      ]
+    },
+    {
+      stratum: "Columnar epithelium",
+      draw: 1,
+      items: [
+        { name: "Non-ciliated simple columnar epithelium" },
+        { name: "Ciliated simple columnar epithelium" },
+        { name: "Ciliated pseudostratified columnar epithelium" }
+      ]
+    },
+    {
+      stratum: "Keratinized squamous",
+      draw: 1,
+      items: [
+        { name: "Non-keratinized stratified squamous epithelium" },
+        { name: "Keratinized stratified squamous epithelium" }
+      ]
+    },
+    {
+      stratum: "Stratified epithelium",
+      draw: 2,
+      items: [
+        { name: "Stratified cuboidal epithelium" },
+        { name: "Stratified columnar epithelium" },
+        { name: "Transitional epithelium" }
+      ]
+    },
+    {
+      stratum: "Loose connective tissue",
+      draw: 2,
+      items: [
+        { name: "Areolar loose connective tissue" },
+        { name: "Adipose loose connective tissue" },
+        { name: "Reticular loose connective tissue" }
+      ]
+    },
+    {
+      stratum: "Dense connective tissue",
+      draw: 1,
+      items: [
+        { name: "Dense regular connective tissue" },
+        { name: "Dense irregular connective tissue" },
+        { name: "Dense elastic connective tissue" }
+      ]
+    },
+    {
+      stratum: "Cartilage",
+      draw: 2,
+      items: [
+        { name: "Hyaline cartilage" },
+        { name: "Fibrocartilage" },
+        { name: "Elastic cartilage" }
+      ]
+    },
+    {
+      stratum: "Misc. connective tissue",
+      draw: 1,
+      items: [
+        { name: "Bone connective tissue" },
+        { name: "Blood connective tissue" }
+      ]
+    },
+    {
+      stratum: "Muscle tissue",
+      draw: 3,
+      items: [
+        { name: "Skeletal muscle" },
+        { name: "Cardiac muscle" },
+        { name: "Smooth muscle" }
+      ]
+    },
+    {
+      stratum: "Nervous",
+      draw: 1,
+      items: [
+        { name: "Nervous tissue" }
+      ]
+    }
+  ];
+
+  function validateStrata(strata) {
+    let total = 0;
+    for (const s of strata) {
+      if (!Array.isArray(s.items) || s.items.length === 0) throw new Error(`Stratum "${s.stratum}" has no items.`);
+      if (s.draw > s.items.length) throw new Error(`Stratum "${s.stratum}" cannot draw ${s.draw} from ${s.items.length}.`);
+      total += s.draw;
+    }
+    if (total !== 16) throw new Error(`Strata draw ${total} tissues; this bracket expects 16.`);
+  }
+
+  function drawStratified16() {
+    validateStrata(STRATA);
+    let picked = [];
+    for (const s of STRATA) picked = picked.concat(shuffle(s.items).slice(0, s.draw));
+    picked = shuffle(picked);
+    return picked;
+  }
+
+  /************************************************************
+   * Live history rendering
+   ************************************************************/
+  function renderDecisionHistory(picks) {
+    const box = document.getElementById("decisionHistory");
+    const note = document.getElementById("decisionHistoryNote");
+
+    if (!picks || picks.length === 0) {
+      note.textContent = "Your completed decisions will appear here.";
+      box.innerHTML = "";
+      return;
+    }
+
+    note.textContent = `Decisions completed: ${picks.length}`;
+    box.innerHTML = picks.map(p => `
+      <div class="historyItem">
+        <strong>Decision #${p.decision}:</strong>
+        ${escapeHtml(p.winner)} <span class="note">(excluded: ${escapeHtml(p.loser)})</span>
+      </div>
+    `).join("");
+  }
+
+  /************************************************************
+   * Bracket app
+   ************************************************************/
+  const BracketApp = {
+    state: {
+      studentName: "",
+      startedAt: "",
+      completedAt: "",
+      rounds: [],        // [16], [8], [4], [2], [1]
+      roundIndex: 0,
+      matchIndex: 0,
+      picks: [], // {decision, round, match, a, b, winner, loser, explanation, timestamp}
+      awaitingAdvance: false,
+      completedRoundForSummary: 0
+    },
+
+    save() { safeSet(SETTINGS.persistKey, JSON.stringify(this.state)); },
+
+    reset() {
+      safeRemove(SETTINGS.persistKey);
+      safeRemove(SETTINGS.seedsKey);
+      this.state = {
+        studentName: "",
+        startedAt: "",
+        completedAt: "",
+        rounds: [],
+        roundIndex: 0,
+        matchIndex: 0,
+        picks: [],
+      awaitingAdvance: false,
+      completedRoundForSummary: 0
+    };
+      // Clear UI
+      document.getElementById("matchCard").innerHTML = `
+        <div class="titleBox">
+          <p class="bracketTitle" id="matchTitle">Bracket will appear here</p>
+        </div>
+      `;
+      document.getElementById("liveBracketWrap").innerHTML = "";
+      document.getElementById("decisionHistory").innerHTML = "";
+      document.getElementById("decisionHistoryNote").textContent = "Your completed decisions will appear here.";
+    },
+
+    start(studentName) {
+      this.state.studentName = studentName;
+      this.state.startedAt = new Date().toISOString();
+      this.state.completedAt = "";
+      this.state.roundIndex = 0;
+      this.state.matchIndex = 0;
+      this.state.picks = [];
+    this.state.awaitingAdvance = false;
+    this.state.completedRoundForSummary = 0;
+
+      // Persist the selected 16 so refresh doesn't reshuffle
+      const stored = safeGet(SETTINGS.seedsKey);
+      let seeds = null;
+      if (stored) {
+        try { seeds = JSON.parse(stored); } catch { seeds = null; }
+      }
+      if (!Array.isArray(seeds) || seeds.length !== 16) {
+        seeds = drawStratified16();
+        safeSet(SETTINGS.seedsKey, JSON.stringify(seeds));
+      }
+
+      this.state.rounds = [seeds];
+      this.save();
+      this.render();
+    },
+
+    load(savedState) {
+      if (!savedState || !savedState.studentName) return;
+      this.state = Object.assign({
+        studentName: "",
+        startedAt: "",
+        completedAt: "",
+        rounds: [],
+        roundIndex: 0,
+        matchIndex: 0,
+        picks: [],
+        awaitingAdvance: false,
+        completedRoundForSummary: 0
+      }, savedState);
+      this.state.awaitingAdvance = !!this.state.awaitingAdvance;
+      this.state.completedRoundForSummary = this.state.completedRoundForSummary || 0;
+      this.save();
+      this.render();
+    },
+
+    currentRoundItems() {
+      return this.state.rounds[this.state.roundIndex] || [];
+    },
+
+    currentPairs() {
+      return pairUp(this.currentRoundItems());
+    },
+
+    ensureNextRound() {
+      if (!this.state.rounds[this.state.roundIndex + 1]) this.state.rounds[this.state.roundIndex + 1] = [];
+    },
+
+    advanceWinner(winnerItem) {
+      this.ensureNextRound();
+      this.state.rounds[this.state.roundIndex + 1].push(winnerItem);
+    },
+
+    isRoundComplete() {
+      return this.state.matchIndex >= this.currentPairs().length;
+    },
+
+    isTournamentComplete() {
+      const items = this.currentRoundItems();
+      return items.length === 1 && this.state.roundIndex > 0;
+    },
+
+    champion() {
+      const items = this.currentRoundItems();
+      return (items.length === 1) ? items[0] : null;
+    },
+
+    recordPick(winnerItem, loserItem, aItem, bItem, explanation) {
+      const decision = this.state.picks.length + 1;
+      this.state.picks.push({
+        decision,
+        round: this.state.roundIndex + 1,
+        match: this.state.matchIndex + 1,
+        a: aItem.name,
+        b: bItem.name,
+        winner: winnerItem.name,
+        loser: loserItem.name,
+        explanation,
+        timestamp: new Date().toISOString()
+      });
+
+      this.advanceWinner(winnerItem);
+      this.state.matchIndex += 1;
+      this.save();
+      this.render();
+    },
+
+    updatePills() {
+      const pairs = this.currentPairs();
+      const roundNum = this.state.roundIndex + 1;
+      const matchNum = Math.min(this.state.matchIndex + 1, Math.max(pairs.length, 1));
+
+      document.getElementById("studentPill").textContent = this.state.studentName || "—";
+      document.getElementById("roundLabel").textContent = pairs.length ? String(roundNum) : "—";
+      document.getElementById("matchLabel").textContent = pairs.length ? `${matchNum} of ${pairs.length}` : "—";
+      document.getElementById("pickCount").textContent = String(this.state.picks.length);
+    },
+
+    render() {
+      this.updatePills();
+
+      // Update live bracket + decision history continuously
+      this.renderBracketSVG("liveBracketWrap");
+      renderDecisionHistory(this.state.picks);
+
+      // Transition between rounds
+      if (this.state.awaitingAdvance) {
+        this.showRoundSummary();
+        return;
+      }
+      if (this.isRoundComplete()) {
+        const completedRound = this.state.roundIndex + 1;
+        if (completedRound <= 3) {
+          this.state.awaitingAdvance = true;
+          this.state.completedRoundForSummary = completedRound;
+          this.save();
+          this.showRoundSummary();
+          return;
+        }
+        this.state.roundIndex += 1;
+        this.state.matchIndex = 0;
+        this.save();
+        return this.render();
+      }
+
+// Completion
+      if (this.isTournamentComplete()) {
+        this.state.completedAt = this.state.completedAt || new Date().toISOString();
+        this.save();
+        this.showResults();
+        return;
+      }
+
+      // Render current matchup UI
+      const card = document.getElementById("matchCard");
+      const pairs = this.currentPairs();
+      const [a, b] = pairs[this.state.matchIndex];
+      const roundNum = this.state.roundIndex + 1;
+      const decisionsThisRound = this.currentPairs().length;
+      const decisionInRound = this.state.matchIndex + 1;
+      const roundHeaderText = `Round ${roundNum} — Decision #${decisionInRound} of ${decisionsThisRound}`;
+
+
+      const titleText = `${this.state.studentName}'s Tissue Tournament Bracket`;
+
+      card.innerHTML = `
+        <div class="titleBox">
+          <p class="bracketTitle" id="matchTitle">${escapeHtml(titleText)}</p>
+        </div>
+
+        <div class="roundHeader" id="roundHeader">${escapeHtml(roundHeaderText)}</div>
+      <h2 class="questionHeader">Which tissue is slightly “more” important?</h2>
+
+        <div class="choices">
+          <div class="choice" id="choiceA">
+            <h3>${escapeHtml(a.name)}</h3>
+            <button class="primary" id="pickA" type="button">Select this tissue</button>
+          </div>
+          <div class="choice" id="choiceB">
+            <h3>${escapeHtml(b.name)}</h3>
+            <button class="primary" id="pickB" type="button">Select this tissue</button>
+          </div>
+        </div>
+
+        <div class="divider"></div>
+
+        <div>
+          <label for="explainBox">Explanation (required)</label>
+          <p class="note" style="margin:0 0 8px;">${escapeHtml(EXPLANATION_INSTRUCTIONS)}</p>
+          <textarea id="explainBox" placeholder="Write your brief explanation here..."></textarea>
+          <p class="note" id="explainHint" style="margin-top:8px;">Word count: <strong>0</strong> / ${SETTINGS.minExplanationWords}</p>
+        </div>
+
+        <div class="row" style="margin-top:10px;">
+          <div class="note" id="selectedHint">Selected tissue: <strong>none yet</strong></div>
+          <div class="btns">
+            <button class="good" id="submitDecision" type="button" disabled>Submit Decision &amp; Continue</button>
+          </div>
+        </div>
+      `;
+
+      const choiceA = document.getElementById("choiceA");
+      const choiceB = document.getElementById("choiceB");
+      const pickA = document.getElementById("pickA");
+      const pickB = document.getElementById("pickB");
+      const selectedHint = document.getElementById("selectedHint");
+      const explainBox = document.getElementById("explainBox");
+      const hint = document.getElementById("explainHint");
+      const submitBtn = document.getElementById("submitDecision");
+
+      let selected = null; // "A" or "B"
+
+      const countWords = (s) => {
+        const t = (s || "").trim();
+        if (!t) return 0;
+        return t.split(/\s+/).filter(Boolean).length;
+      };
+      const explanationValid = () => (countWords(explainBox.value) >= SETTINGS.minExplanationWords);
+const updateSubmitEnabled = () => {
+        submitBtn.disabled = !(selected && explanationValid());
+      };
+
+      const setSelected = (which) => {
+        selected = which;
+
+        choiceA.classList.toggle("selected", which === "A");
+        choiceB.classList.toggle("selected", which === "B");
+
+        if (which === "A") {
+          pickA.textContent = "Tissue Selected";
+          pickB.textContent = "Select this tissue";
+          pickA.classList.add("selectedBtn");
+          pickB.classList.remove("selectedBtn");
+          selectedHint.innerHTML = `Selected tissue: <strong>${escapeHtml(a.name)}</strong>`;
+        } else {
+          pickB.textContent = "Tissue Selected";
+          pickA.textContent = "Select this tissue";
+          pickB.classList.add("selectedBtn");
+          pickA.classList.remove("selectedBtn");
+          selectedHint.innerHTML = `Selected tissue: <strong>${escapeHtml(b.name)}</strong>`;
+        }
+
+        updateSubmitEnabled();
+      };
+
+      // Selection buttons only (do not advance)
+      pickA.addEventListener("click", () => setSelected("A"));
+      pickB.addEventListener("click", () => setSelected("B"));
+
+      // Keep submit disabled until explanation is long enough
+      explainBox.addEventListener("input", () => {
+        const words = countWords(explainBox.value);
+        if (words < SETTINGS.minExplanationWords) {
+          hint.innerHTML = `Word count: <strong>${words}</strong> / ${SETTINGS.minExplanationWords} — please write at least ${SETTINGS.minExplanationWords} words to enable submission.`;
+          hint.classList.add("errorText");
+        } else {
+          hint.innerHTML = `Word count: <strong>${words}</strong> / ${SETTINGS.minExplanationWords} — you can submit your decision now.`;
+          hint.classList.remove("errorText");
+        }
+        updateSubmitEnabled();
+      });
+
+      submitBtn.addEventListener("click", () => {
+        if (!selected) {
+          selectedHint.innerHTML = `Selected tissue: <strong class="errorText">please select a tissue first</strong>`;
+          return;
+        }
+        const explanation = (explainBox.value || "").trim();
+        if (countWords(explanation) < SETTINGS.minExplanationWords) {
+          const wc = countWords(explanation);
+          hint.innerHTML = `Word count: <strong>${wc}</strong> / ${SETTINGS.minExplanationWords} — please write at least ${SETTINGS.minExplanationWords} words before submitting.`;
+          hint.classList.add("errorText");
+          explainBox.focus();
+          updateSubmitEnabled();
+          return;
+        }
+
+        if (selected === "A") {
+          this.recordPick(a, b, a, b, explanation);
+        } else {
+          this.recordPick(b, a, a, b, explanation);
+        }
+      });
+
+      // Initial submit state
+      updateSubmitEnabled();
+    },
+
+    showRoundSummary() {
+      const summaryCard = document.getElementById("roundSummaryCard");
+      const matchCard = document.getElementById("matchCard");
+      const completedRound = this.state.completedRoundForSummary;
+      const nextRound = completedRound + 1;
+
+      document.getElementById("summaryTitle").textContent = `Round ${completedRound} complete!`;
+      document.getElementById("summaryNote").textContent = `Here is your bracket so far. When you're ready, continue to Round ${nextRound}.`;
+      document.getElementById("summaryProgress").textContent = `Progress: ${this.state.picks.length} decision(s) completed.`;
+
+      const btn = document.getElementById("btnNextRound");
+      btn.textContent = `On to Round ${nextRound}!`;
+
+      this.renderBracketSVG("summaryBracketWrap");
+
+      matchCard.classList.add("hidden");
+      summaryCard.classList.remove("hidden");
+
+      btn.onclick = () => {
+        this.state.awaitingAdvance = false;
+        this.state.completedRoundForSummary = 0;
+        this.state.roundIndex += 1;
+        this.state.matchIndex = 0;
+        this.save();
+        summaryCard.classList.add("hidden");
+        matchCard.classList.remove("hidden");
+        this.render();
+      };
+    },
+
+    showResults() {
+      const champ = this.champion();
+      const resultCard = document.getElementById("resultCard");
+      resultCard.classList.remove("hidden");
+
+      document.getElementById("championName").textContent = champ ? champ.name : "—";
+
+      const completedStr = this.state.completedAt ? new Date(this.state.completedAt).toLocaleString() : new Date().toLocaleString();
+      document.getElementById("exportTitle1").textContent = `${this.state.studentName}'s Tissue Tournament Bracket`;
+      document.getElementById("exportMeta1").textContent = `Completed: ${completedStr} • Champion: ${champ ? champ.name : "—"}`;
+      document.getElementById("exportMeta2").textContent = `Student: ${this.state.studentName} • Completed: ${completedStr}`;
+      document.getElementById("champLine2").textContent = `CHAMPION: ${champ ? champ.name : "—"}`;
+
+      // Render export bracket and explanations
+      this.renderBracketSVG("bracketSVGWrap");
+      this.renderExplanations();
+
+      // Keep live bracket in sync as well
+      this.renderBracketSVG("liveBracketWrap");
+      renderDecisionHistory(this.state.picks);
+    },
+
+    renderExplanations() {
+      const list = document.getElementById("explanationsList");
+      list.innerHTML = "";
+
+      for (const p of this.state.picks) {
+        const block = document.createElement("div");
+        block.className = "expBlock";
+        block.innerHTML = `
+          <div class="expTitle">Explanation for Decision #${p.decision}</div>
+          <div class="expSmall"><strong>Matchup:</strong> ${escapeHtml(p.a)} vs ${escapeHtml(p.b)}</div>
+          <div class="expSmall"><strong>Winner:</strong> ${escapeHtml(p.winner)} (excluded: ${escapeHtml(p.loser)})</div>
+          <div class="expSmall"><strong>Student explanation:</strong> ${escapeHtml(p.explanation)}</div>
+        `;
+        list.appendChild(block);
+      }
+    },
+
+    // March Madness-style bracket SVG
+    renderBracketSVG(targetElementId = "bracketSVGWrap") {
+      const wrap = document.getElementById(targetElementId);
+      if (!wrap) return;
+      wrap.innerHTML = "";
+
+      // Base bracket size
+      const n = 16;
+      const R = Math.log2(n);
+
+      // Get fixed-length arrays per round so layout is stable during live play
+      const round0 = padToLength(this.state.rounds[0] || [], 16);
+      const round1 = padToLength(this.state.rounds[1] || [], 8);
+      const round2 = padToLength(this.state.rounds[2] || [], 4);
+      const round3 = padToLength(this.state.rounds[3] || [], 2);
+      const round4 = padToLength(this.state.rounds[4] || [], 1);
+      const rounds = [round0, round1, round2, round3, round4];
+
+      // Map round-match => decision number
+      const decisionMap = new Map();
+      for (const p of this.state.picks) decisionMap.set(`${p.round}-${p.match}`, p.decision);
+
+      // Layout constants
+      const slotW = 260;
+      const slotH = 26;
+      const slotGap = 8;
+      const matchGap = 18;
+      const roundGap = 90;
+      const margin = 20;
+
+      const matchBlockH = (slotH * 2) + slotGap + matchGap;
+      const height = margin * 2 + (n / 2) * matchBlockH;
+      const width  = margin * 2 + (R) * (slotW + roundGap) + slotW;
+
+      // centers[r][m] = y center for match m in round r
+      const centers = [];
+      centers[0] = [];
+      for (let m = 0; m < n / 2; m++) {
+        const yTop = margin + m * matchBlockH;
+        centers[0][m] = yTop + slotH + slotGap / 2;
+      }
+      for (let r = 1; r < R; r++) {
+        centers[r] = [];
+        const prev = centers[r - 1];
+        const matches = n / Math.pow(2, r + 1);
+        for (let m = 0; m < matches; m++) {
+          centers[r][m] = (prev[2*m] + prev[2*m + 1]) / 2;
+        }
+      }
+
+      const svgNS = "http://www.w3.org/2000/svg";
+      const svg = document.createElementNS(svgNS, "svg");
+      svg.setAttribute("width", "100%");
+      svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
+      svg.setAttribute("role", "img");
+      svg.setAttribute("aria-label", "Tournament bracket showing matchups, winners, and decision numbers");
+
+      function addText(x,y,text,opts={}){
+        const t = document.createElementNS(svgNS,"text");
+        t.setAttribute("x", x);
+        t.setAttribute("y", y);
+        t.setAttribute("fill", opts.fill || "#111827");
+        t.setAttribute("font-size", opts.size || "12");
+        t.setAttribute("font-weight", opts.weight || "600");
+        t.setAttribute("dominant-baseline","middle");
+        t.textContent = text;
+        svg.appendChild(t);
+      }
+
+      function addRect(x,y,w,h,opts={}){
+        const r = document.createElementNS(svgNS,"rect");
+        r.setAttribute("x",x); r.setAttribute("y",y);
+        r.setAttribute("width",w); r.setAttribute("height",h);
+        r.setAttribute("rx", 8);
+        r.setAttribute("fill", opts.fill || "#f9fafb");
+        r.setAttribute("stroke", opts.stroke || "rgba(17,24,39,.25)");
+        r.setAttribute("stroke-width", opts.strokeWidth || "1");
+        svg.appendChild(r);
+      }
+
+      function addPath(d, opts={}){
+        const p = document.createElementNS(svgNS,"path");
+        p.setAttribute("d", d);
+        p.setAttribute("fill","none");
+        p.setAttribute("stroke", opts.stroke || "rgba(17,24,39,.28)");
+        p.setAttribute("stroke-width", opts.strokeWidth || "2");
+        p.setAttribute("stroke-linecap","round");
+        p.setAttribute("stroke-linejoin","round");
+        svg.appendChild(p);
+      }
+
+      // Draw rounds 1-4 (columns). For the final champion column, we still draw as Round 4 slot.
+      for (let r = 0; r < R; r++) {
+        const x = margin + r * (slotW + roundGap);
+        addText(x, margin/2, `Round ${r+1}`, { size: 13, weight: "800" });
+
+        const items = rounds[r];
+        const pairs = pairUp(items);
+
+        for (let m = 0; m < pairs.length; m++) {
+          const [a, b] = pairs[m];
+          const centerY = centers[r][m];
+          const yTop = centerY - (slotH + slotGap/2);
+
+          const pickRec = this.state.picks.find(p => p.round === (r+1) && p.match === (m+1));
+          const winnerName = pickRec?.winner || "";
+          const decisionNum = decisionMap.get(`${r+1}-${m+1}`);
+
+          const aWin = a.name && a.name === winnerName;
+          const bWin = b.name && b.name === winnerName;
+
+          addRect(x, yTop, slotW, slotH, {
+            fill: aWin ? "rgba(4,120,87,.10)" : "#f9fafb",
+            stroke: aWin ? "rgba(4,120,87,.45)" : "rgba(17,24,39,.25)"
+          });
+          addText(x+10, yTop + slotH/2, a.name || "", { weight: aWin ? "800" : "600" });
+
+          addRect(x, yTop + slotH + slotGap, slotW, slotH, {
+            fill: bWin ? "rgba(4,120,87,.10)" : "#f9fafb",
+            stroke: bWin ? "rgba(4,120,87,.45)" : "rgba(17,24,39,.25)"
+          });
+          addText(x+10, yTop + slotH + slotGap + slotH/2, b.name || "", { weight: bWin ? "800" : "600" });
+
+          if (decisionNum) {
+            addText(x + slotW + 10, centerY, `Decision #${decisionNum}`, { weight: "800", fill: "#0b2e87" });
+          }
+
+          // Connectors to next round
+          if (r < R-1) {
+            const x1 = x + slotW;
+            const xMid = x1 + 22;
+            const nextX = margin + (r+1)*(slotW + roundGap);
+            const nextCenterY = centers[r+1][Math.floor(m/2)];
+
+            const yA = yTop + slotH/2;
+            const yB = yTop + slotH + slotGap + slotH/2;
+            const yC = centerY;
+
+            addPath(`M ${x1} ${yA} L ${xMid} ${yA} L ${xMid} ${yC}
+                     M ${x1} ${yB} L ${xMid} ${yB} L ${xMid} ${yC}
+                     M ${xMid} ${yC} L ${nextX} ${nextCenterY}`);
+          }
+        }
+      }
+
+      // Draw champion slot at far right
+      const champX = margin + (R) * (slotW + roundGap);
+      const champY = centers[R-1][0];
+      addText(champX, margin/2, "Champion", { size: 13, weight: "800" });
+      const champItem = rounds[4][0];
+      const champName = champItem?.name || "";
+      addRect(champX, champY - slotH/2, slotW, slotH, {
+        fill: champName ? "rgba(4,120,87,.10)" : "#f9fafb",
+        stroke: champName ? "rgba(4,120,87,.45)" : "rgba(17,24,39,.25)"
+      });
+      addText(champX+10, champY, champName, { weight: champName ? "900" : "600" });
+
+      wrap.appendChild(svg);
+    }
+  };
+
+  /************************************************************
+   * PDF export (two pages: bracket + explanations)
+   ************************************************************/
+  async function canvasFromNode(node){
+    return await html2canvas(node, { scale: 2, backgroundColor: "#ffffff" });
+  }
+
+  function addCanvasToPDF(pdf, canvas, addNewPage=false){
+    const pageWidth = pdf.internal.pageSize.getWidth();
+    const pageHeight = pdf.internal.pageSize.getHeight();
+    const margin = 36;
+
+    const maxW = pageWidth - margin*2;
+    const maxH = pageHeight - margin*2;
+
+    const imgW = canvas.width;
+    const imgH = canvas.height;
+    const ratio = Math.min(maxW / imgW, maxH / imgH);
+
+    const renderW = imgW * ratio;
+    const renderH = imgH * ratio;
+
+    if (renderH <= maxH){
+      if (addNewPage) pdf.addPage();
+      pdf.addImage(canvas.toDataURL("image/png"), "PNG", margin, margin, renderW, renderH);
+      return;
+    }
+
+    // Multi-page slicing
+    const sliceCanvas = document.createElement("canvas");
+    const ctx = sliceCanvas.getContext("2d");
+    const sliceHpx = Math.floor(maxH / ratio);
+
+    sliceCanvas.width = canvas.width;
+
+    let y = 0;
+    let first = true;
+    while (y < canvas.height){
+      const remaining = canvas.height - y;
+      const thisSliceH = Math.min(sliceHpx, remaining);
+
+      sliceCanvas.height = thisSliceH;
+      ctx.clearRect(0,0,sliceCanvas.width,sliceCanvas.height);
+      ctx.drawImage(canvas, 0, y, canvas.width, thisSliceH, 0, 0, canvas.width, thisSliceH);
+
+      const sliceData = sliceCanvas.toDataURL("image/png");
+      if (addNewPage || !first) pdf.addPage();
+      pdf.addImage(sliceData, "PNG", margin, margin, renderW, thisSliceH * ratio);
+
+      y += thisSliceH;
+      first = false;
+      addNewPage = false;
+    }
+  }
+
+  async function exportPDF(which){
+  if (!window.jspdf){
+    alert("jsPDF not found. Make sure the jsPDF script is loading.");
+    return;
+  }
+  const { jsPDF } = window.jspdf;
+  const pdf = new jsPDF({ orientation:"portrait", unit:"pt", format:"letter" });
+  const page1 = document.getElementById("exportBracketPage");
+  const page2 = document.getElementById("exportExplanationPage");
+
+  if (which === "bracket"){
+    const c1 = await canvasFromNode(page1);
+    addCanvasToPDF(pdf, c1, false);
+  } else if (which === "explanations"){
+    const c2 = await canvasFromNode(page2);
+    addCanvasToPDF(pdf, c2, false);
+  } else {
+    const c1 = await canvasFromNode(page1);
+    addCanvasToPDF(pdf, c1, false);
+    const c2 = await canvasFromNode(page2);
+    addCanvasToPDF(pdf, c2, true);
+  }
+
+  const safeName = (BracketApp.state.studentName || "student")
+    .replace(/[^a-z0-9]+/gi, "_")
+    .replace(/^_+|_+$/g, "");
+
+  const suffix = (which === "bracket") ? "bracket" : (which === "explanations") ? "explanations" : "bracket_and_explanations";
+  pdf.save(`${safeName}_tissue_tournament_${suffix}.pdf`);
+}
+
+document.getElementById("btnPDFBracket").addEventListener("click", () => exportPDF("bracket"));
+document.getElementById("btnPDFExplanations").addEventListener("click", () => exportPDF("explanations"));
+
+  /************************************************************
+   * Gate logic (your working flow) + show live bracket below
+   ************************************************************/
+  const nameInput = document.getElementById("requiredName");
+  const btnBegin = document.getElementById("btnBegin");
+  const studentPill = document.getElementById("studentPill");
+  const nameHint = document.getElementById("nameHint");
+
+  const startGate = document.getElementById("startGate");
+  const matchCard = document.getElementById("matchCard");
+  const liveBracketCard = document.getElementById("liveBracketCard");
+  const resultCard = document.getElementById("resultCard");
+
+  const btnReset = document.getElementById("btnReset");
+  const btnSave = document.getElementById("btnSave");
+  const resumeBox = document.getElementById("resumeBox");
+  const resumeNote = document.getElementById("resumeNote");
+  const btnResume = document.getElementById("btnResume");
+  const roundSummaryCard = document.getElementById("roundSummaryCard");
+
+  function getCleanName(){ return (nameInput.value || "").trim(); }
+
+  function updateBeginState(){
+    const name = getCleanName();
+    const ok = name.length > 0;
+
+    btnBegin.disabled = !ok;
+    studentPill.textContent = ok ? name : "—";
+
+    if (!ok){
+      nameHint.textContent = "Please enter your name to begin.";
+      nameHint.classList.add("errorText");
+    } else {
+      nameHint.textContent = "";
+      nameHint.classList.remove("errorText");
+    }
+  }
+
+  updateBeginState();
+  nameInput.addEventListener("input", updateBeginState);
+
+  function checkForSavedRun(){
+    const stored = safeGet(SETTINGS.persistKey);
+    if (!stored){
+      resumeBox.classList.add("hidden");
+      resumeNote.textContent = "";
+      return null;
+    }
+    let saved = null;
+    try { saved = JSON.parse(stored); } catch { saved = null; }
+    if (!saved || !saved.studentName || !Array.isArray(saved.picks) || saved.completedAt){
+      resumeBox.classList.add("hidden");
+      resumeNote.textContent = "";
+      return null;
+    }
+    resumeBox.classList.remove("hidden");
+    resumeNote.textContent = `Saved progress found for ${saved.studentName} (${saved.picks.length} decision(s) completed).`;
+    nameInput.value = saved.studentName;
+    updateBeginState();
+    return saved;
+  }
+
+  let savedRun = checkForSavedRun();
+
+
+  nameInput.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" && !btnBegin.disabled){
+      e.preventDefault();
+      btnBegin.click();
+    }
+  });
+
+  function startBracket(studentName){
+    document.getElementById("matchTitle").textContent = `${studentName}'s Tissue Tournament Bracket`;
+    BracketApp.start(studentName);
+  }
+
+  btnResume.addEventListener("click", () => {
+    const stored = safeGet(SETTINGS.persistKey);
+    if (!stored) { alert("No saved progress found."); return; }
+    let saved = null;
+    try { saved = JSON.parse(stored); } catch { saved = null; }
+    if (!saved || !saved.studentName) { alert("Saved progress could not be loaded."); return; }
+
+    startGate.classList.add("hidden");
+    matchCard.classList.remove("hidden");
+    liveBracketCard.classList.remove("hidden");
+    resultCard.classList.add("hidden");
+    roundSummaryCard.classList.add("hidden");
+    roundSummaryCard.classList.add("hidden");
+
+    BracketApp.load(saved);
+  });
+
+  btnBegin.addEventListener("click", () => {
+    const name = getCleanName();
+    // Warn before overwriting an unfinished saved run
+    const stored = safeGet(SETTINGS.persistKey);
+    if (stored) {
+      try {
+        const s = JSON.parse(stored);
+        if (s && s.studentName && Array.isArray(s.picks) && !s.completedAt && s.picks.length > 0) {
+          const ok = confirm('A saved bracket exists. Starting a new bracket will overwrite your saved progress. Continue?');
+          if (!ok) return;
+          safeRemove(SETTINGS.persistKey);
+          safeRemove(SETTINGS.seedsKey);
+          savedRun = null;
+        }
+      } catch { /* ignore */ }
+    }
+
+    if (!name){
+      updateBeginState();
+      nameInput.focus();
+      return;
+    }
+
+    startGate.classList.add("hidden");
+    matchCard.classList.remove("hidden");
+    liveBracketCard.classList.remove("hidden");
+    resultCard.classList.add("hidden");
+    roundSummaryCard.classList.add("hidden");
+    startBracket(name);
+  });
+
+  btnSave.addEventListener("click", () => {
+    BracketApp.save();
+    alert("Progress saved on this device/browser. You can close this tab and come back later, then choose Resume Saved Bracket.");
+  });
+
+  btnReset.addEventListener("click", () => {
+    if (!confirm("Reset the entire bracket and clear saved progress?")) return;
+
+    BracketApp.reset();
+
+    // Reset UI
+    nameInput.value = "";
+    startGate.classList.remove("hidden");
+    matchCard.classList.add("hidden");
+    liveBracketCard.classList.add("hidden");
+    resultCard.classList.add("hidden");
+
+    document.getElementById("roundLabel").textContent = "—";
+    document.getElementById("matchLabel").textContent = "—";
+    document.getElementById("pickCount").textContent = "0";
+    studentPill.textContent = "—";
+
+    updateBeginState();
+    nameInput.focus();
+  });
+
+  // Expose for debugging if needed
+  window.BracketApp = BracketApp;
+});
+</script>
+
+</body>
+</html>
